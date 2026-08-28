@@ -22,7 +22,7 @@ func Setup(app *fiber.App, cfg *config.Config, db *pgxpool.Pool) {
 	spotifyHandler := handler.NewSpotifyHandler(cfg, userRepo)
 	diaryHandler := handler.NewDiaryHandler(diaryRepo)
 	newsHandler := handler.NewNewsHandler(historyRepo, diaryRepo)
-	monthlyHandler := handler.NewMonthlyHandler(summaryRepo)
+	monthlyHandler := handler.NewMonthlyHandler(cfg, summaryRepo, userRepo)
 	recapHandler := handler.NewRecapHandler(recapRepo)
 
 	// CORS
@@ -66,6 +66,7 @@ func Setup(app *fiber.App, cfg *config.Config, db *pgxpool.Pool) {
 	// Monthly
 	monthly := protected.Group("/monthly")
 	monthly.Get("/records", monthlyHandler.GetMonthlyRecords)
+	monthly.Post("/generate", monthlyHandler.GenerateMonthly)
 	monthly.Get("/list", monthlyHandler.ListMonths)
 
 	// Recap

@@ -28,6 +28,7 @@ func NewAuthHandler(cfg *config.Config, userRepo *repository.UserRepository) *Au
 			spotifyauth.ScopeUserReadRecentlyPlayed,
 			spotifyauth.ScopeUserReadEmail,
 			spotifyauth.ScopeUserReadPrivate,
+			spotifyauth.ScopeUserTopRead,
 			spotifyauth.ScopePlaylistReadPrivate,
 			spotifyauth.ScopePlaylistReadCollaborative,
 		),
