@@ -2,8 +2,10 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/NapasinNgam/spotify-diary/internal/model"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -18,7 +20,8 @@ func NewSummaryRepository(db *pgxpool.Pool) *SummaryRepository {
 func (r *SummaryRepository) GetMonthlySummary(ctx context.Context, userID int, month string) (*model.MonthlySummary, error) {
 	query := `
 		SELECT id, user_id, summary_month, total_plays, unique_tracks, unique_artists, 
-			total_duration_ms, top_tracks, top_artists, genre_breakdown, generated_at
+			total_duration_ms, top_tracks, top_artists, genre_breakdown,
+			period_start, period_end, COALESCE(source, 'listening_history'), generated_at
 		FROM monthly_summaries
 		WHERE user_id = $1 AND summary_month = $2
 	`
@@ -27,10 +30,58 @@ func (r *SummaryRepository) GetMonthlySummary(ctx context.Context, userID int, m
 	err := r.db.QueryRow(ctx, query, userID, month).Scan(
 		&s.ID, &s.UserID, &s.SummaryMonth, &s.TotalPlays,
 		&s.UniqueTracks, &s.UniqueArtists, &s.TotalDurationMs,
-		&s.TopTracks, &s.TopArtists, &s.GenreBreakdown, &s.GeneratedAt,
+		&s.TopTracks, &s.TopArtists, &s.GenreBreakdown,
+		&s.PeriodStart, &s.PeriodEnd, &s.Source, &s.GeneratedAt,
 	)
 
-	return s, err
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
+}
+
+type UpsertMonthlySummaryParams struct {
+	UserID          int
+	SummaryMonth    string
+	TotalPlays      int
+	UniqueTracks    int
+	UniqueArtists   int
+	TotalDurationMs int64
+	TopTracks       string // JSON
+	TopArtists      string // JSON
+	GenreBreakdown  string // JSON
+	PeriodStart     time.Time
+	PeriodEnd       time.Time
+	Source          string // "spotify_top_tracks" or "listening_history"
+}
+
+func (r *SummaryRepository) UpsertMonthlySummary(ctx context.Context, params UpsertMonthlySummaryParams) error {
+	query := `
+		INSERT INTO monthly_summaries 
+			(user_id, summary_month, total_plays, unique_tracks, unique_artists, total_duration_ms, 
+			 top_tracks, top_artists, genre_breakdown, period_start, period_end, source, generated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+		ON CONFLICT (user_id, summary_month) DO UPDATE SET
+			total_plays = EXCLUDED.total_plays,
+			unique_tracks = EXCLUDED.unique_tracks,
+			unique_artists = EXCLUDED.unique_artists,
+			total_duration_ms = EXCLUDED.total_duration_ms,
+			top_tracks = EXCLUDED.top_tracks,
+			top_artists = EXCLUDED.top_artists,
+			genre_breakdown = EXCLUDED.genre_breakdown,
+			period_start = EXCLUDED.period_start,
+			period_end = EXCLUDED.period_end,
+			source = EXCLUDED.source,
+			generated_at = NOW()
+	`
+
+	_, err := r.db.Exec(ctx, query,
+		params.UserID, params.SummaryMonth, params.TotalPlays, params.UniqueTracks,
+		params.UniqueArtists, params.TotalDurationMs, params.TopTracks, params.TopArtists,
+		params.GenreBreakdown, params.PeriodStart, params.PeriodEnd, params.Source,
+	)
+	return err
 }
 
 func (r *SummaryRepository) ListAvailableMonths(ctx context.Context, userID int) ([]string, error) {
@@ -53,6 +104,15 @@ func (r *SummaryRepository) ListAvailableMonths(ctx context.Context, userID int)
 
 	return months, nil
 }
+
+func (r *SummaryRepository) HasSummaryForMonth(ctx context.Context, userID int, month string) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM monthly_summaries WHERE user_id = $1 AND summary_month = $2)`
+	var exists bool
+	err := r.db.QueryRow(ctx, query, userID, month).Scan(&exists)
+	return exists, err
+}
+
+// --- Recap Repository ---
 
 type RecapRepository struct {
 	db *pgxpool.Pool
@@ -106,6 +166,9 @@ func (r *RecapRepository) GetByPeriod(ctx context.Context, userID int, period st
 
 	rows, err := r.db.Query(ctx, query, userID, period)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return []model.HalfYearRecap{}, nil
+		}
 		return nil, err
 	}
 	defer rows.Close()
