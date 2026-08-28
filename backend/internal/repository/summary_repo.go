@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/NapasinNgam/spotify-diary/internal/model"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -125,7 +124,9 @@ func NewRecapRepository(db *pgxpool.Pool) *RecapRepository {
 type UpsertRecapParams struct {
 	UserID        int
 	Period        string
-	Rank          int
+	RecapType     string
+	SlotKey       string
+	Rank          *int
 	TrackID       string
 	TrackName     string
 	ArtistName    string
@@ -136,9 +137,11 @@ type UpsertRecapParams struct {
 
 func (r *RecapRepository) Upsert(ctx context.Context, params UpsertRecapParams) error {
 	query := `
-		INSERT INTO half_year_recaps (user_id, period, rank, track_id, track_name, artist_name, album_cover_url, preview_url, description)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		ON CONFLICT (user_id, period, rank) DO UPDATE SET
+		INSERT INTO half_year_recaps (user_id, period, recap_type, slot_key, rank, track_id, track_name, artist_name, album_cover_url, preview_url, description)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		ON CONFLICT (user_id, period, slot_key) DO UPDATE SET
+			recap_type = EXCLUDED.recap_type,
+			rank = EXCLUDED.rank,
 			track_id = EXCLUDED.track_id,
 			track_name = EXCLUDED.track_name,
 			artist_name = EXCLUDED.artist_name,
@@ -149,8 +152,8 @@ func (r *RecapRepository) Upsert(ctx context.Context, params UpsertRecapParams) 
 	`
 
 	_, err := r.db.Exec(ctx, query,
-		params.UserID, params.Period, params.Rank, params.TrackID,
-		params.TrackName, params.ArtistName, params.AlbumCoverURL,
+		params.UserID, params.Period, params.RecapType, params.SlotKey, params.Rank,
+		params.TrackID, params.TrackName, params.ArtistName, params.AlbumCoverURL,
 		params.PreviewURL, params.Description,
 	)
 	return err
@@ -158,17 +161,14 @@ func (r *RecapRepository) Upsert(ctx context.Context, params UpsertRecapParams) 
 
 func (r *RecapRepository) GetByPeriod(ctx context.Context, userID int, period string) ([]model.HalfYearRecap, error) {
 	query := `
-		SELECT id, user_id, period, rank, track_id, track_name, artist_name, album_cover_url, preview_url, description, created_at, updated_at
+		SELECT id, user_id, period, recap_type, slot_key, rank, track_id, track_name, artist_name, album_cover_url, preview_url, description, created_at, updated_at
 		FROM half_year_recaps
 		WHERE user_id = $1 AND period = $2
-		ORDER BY rank
+		ORDER BY id
 	`
 
 	rows, err := r.db.Query(ctx, query, userID, period)
 	if err != nil {
-		if err == pgx.ErrNoRows {
-			return []model.HalfYearRecap{}, nil
-		}
 		return nil, err
 	}
 	defer rows.Close()
@@ -176,8 +176,8 @@ func (r *RecapRepository) GetByPeriod(ctx context.Context, userID int, period st
 	var recaps []model.HalfYearRecap
 	for rows.Next() {
 		var rc model.HalfYearRecap
-		err := rows.Scan(&rc.ID, &rc.UserID, &rc.Period, &rc.Rank, &rc.TrackID,
-			&rc.TrackName, &rc.ArtistName, &rc.AlbumCoverURL, &rc.PreviewURL,
+		err := rows.Scan(&rc.ID, &rc.UserID, &rc.Period, &rc.RecapType, &rc.SlotKey, &rc.Rank,
+			&rc.TrackID, &rc.TrackName, &rc.ArtistName, &rc.AlbumCoverURL, &rc.PreviewURL,
 			&rc.Description, &rc.CreatedAt, &rc.UpdatedAt)
 		if err != nil {
 			return nil, err
@@ -207,4 +207,10 @@ func (r *RecapRepository) ListPeriods(ctx context.Context, userID int) ([]string
 	}
 
 	return periods, nil
+}
+
+func (r *RecapRepository) DeleteSlot(ctx context.Context, userID int, period string, slotKey string) error {
+	query := `DELETE FROM half_year_recaps WHERE user_id = $1 AND period = $2 AND slot_key = $3`
+	_, err := r.db.Exec(ctx, query, userID, period, slotKey)
+	return err
 }
