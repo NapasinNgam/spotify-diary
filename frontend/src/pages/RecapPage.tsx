@@ -1,0 +1,21 @@
+export default function RecapPage() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">🏆 Half-Year Recap</h1>
+          <p className="text-sm text-[var(--text-muted)]">Your Top 5 + Honorable Mentions</p>
+        </div>
+        <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 via-red-500 to-orange-400 text-white text-xs font-semibold">
+          📷 Share to IG
+        </button>
+      </div>
+
+      <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-6">
+        <p className="text-[var(--text-muted)] text-center py-12">
+          Pick your top 5 songs at the end of each half-year period.
+        </p>
+      </div>
+    </div>
+  )
+}
