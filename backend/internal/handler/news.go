@@ -25,8 +25,13 @@ func (h *NewsHandler) GetYesterdayStats(c *fiber.Ctx) error {
 
 	stats, err := h.historyRepo.GetDailyStats(context.Background(), userID, "yesterday")
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch stats",
+		// Return empty stats if no data
+		return c.JSON(fiber.Map{
+			"date":              "",
+			"total_tracks":      0,
+			"unique_tracks":     0,
+			"unique_artists":    0,
+			"total_duration_ms": 0,
 		})
 	}
 
@@ -39,8 +44,8 @@ func (h *NewsHandler) GetTopByGenre(c *fiber.Ctx) error {
 
 	topTracks, err := h.historyRepo.GetTopByGenre(context.Background(), userID, "yesterday", 3)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch top tracks by genre",
+		return c.JSON(fiber.Map{
+			"genres": map[string]interface{}{},
 		})
 	}
 
@@ -51,11 +56,6 @@ func (h *NewsHandler) GetTopByGenre(c *fiber.Ctx) error {
 
 // GetSuggestion returns a random song from configured genre playlists
 func (h *NewsHandler) GetSuggestion(c *fiber.Ctx) error {
-	userID := c.Locals("user_id").(int)
-
-	// TODO: implement playlist-based suggestion
-	_ = userID
-
 	return c.JSON(fiber.Map{
 		"suggestion": nil,
 		"message":    "Configure your genre playlists first",

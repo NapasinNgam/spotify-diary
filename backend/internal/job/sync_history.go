@@ -28,8 +28,8 @@ func (s *Scheduler) SyncAllUsers() {
 func (s *Scheduler) syncUser(ctx context.Context, user model.User) {
 	logger := s.logger.With(zap.Int("user_id", user.ID), zap.String("spotify_id", user.SpotifyID))
 
-	// Create Spotify client with user's token
-	auth := spotifyauth.New(
+	// Create authenticator for token refresh
+	authenticator := spotifyauth.New(
 		spotifyauth.WithClientID(s.cfg.SpotifyClientID),
 		spotifyauth.WithClientSecret(s.cfg.SpotifyClientSecret),
 	)
@@ -40,9 +40,9 @@ func (s *Scheduler) syncUser(ctx context.Context, user model.User) {
 		Expiry:       user.TokenExpiresAt,
 	}
 
-	// Auto-refresh if expired
-	tokenSource := auth.Client(ctx, token)
-	client := spotify.New(tokenSource.Transport)
+	// Create HTTP client with auto-refresh token source
+	httpClient := authenticator.Client(ctx, token)
+	client := spotify.New(httpClient)
 
 	// Get cursor
 	cursor, err := s.historyRepo.GetSyncCursor(ctx, user.ID)

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/NapasinNgam/spotify-diary/internal/model"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -27,6 +28,12 @@ type UpsertDiaryParams struct {
 }
 
 func (r *DiaryRepository) Upsert(ctx context.Context, params UpsertDiaryParams) (*model.DailyLog, error) {
+	// Parse date string to time.Time
+	logDate, err := time.Parse("2006-01-02", params.LogDate)
+	if err != nil {
+		return nil, err
+	}
+
 	query := `
 		INSERT INTO daily_logs (user_id, log_date, track_id, track_name, artist_name, album_name, album_cover_url, preview_url)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -41,8 +48,8 @@ func (r *DiaryRepository) Upsert(ctx context.Context, params UpsertDiaryParams) 
 	`
 
 	entry := &model.DailyLog{}
-	err := r.db.QueryRow(ctx, query,
-		params.UserID, params.LogDate, params.TrackID, params.TrackName,
+	err = r.db.QueryRow(ctx, query,
+		params.UserID, logDate, params.TrackID, params.TrackName,
 		params.ArtistName, params.AlbumName, params.AlbumCoverURL, params.PreviewURL,
 	).Scan(
 		&entry.ID, &entry.UserID, &entry.LogDate, &entry.TrackID,
@@ -57,7 +64,7 @@ func (r *DiaryRepository) GetByMonth(ctx context.Context, userID int, month stri
 	query := `
 		SELECT id, user_id, log_date, track_id, track_name, artist_name, album_name, album_cover_url, preview_url, created_at
 		FROM daily_logs
-		WHERE user_id = $1 AND to_char(log_date::date, 'YYYY-MM') = $2
+		WHERE user_id = $1 AND to_char(log_date, 'YYYY-MM') = $2
 		ORDER BY log_date
 	`
 
@@ -83,7 +90,11 @@ func (r *DiaryRepository) GetByMonth(ctx context.Context, userID int, month stri
 }
 
 func (r *DiaryRepository) Delete(ctx context.Context, userID int, date string) error {
+	logDate, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return err
+	}
 	query := `DELETE FROM daily_logs WHERE user_id = $1 AND log_date = $2`
-	_, err := r.db.Exec(ctx, query, userID, date)
+	_, err = r.db.Exec(ctx, query, userID, logDate)
 	return err
 }

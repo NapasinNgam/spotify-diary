@@ -5,7 +5,7 @@ import "time"
 type DailyLog struct {
 	ID            int       `json:"id"`
 	UserID        int       `json:"user_id"`
-	LogDate       string    `json:"log_date"` // YYYY-MM-DD
+	LogDate       time.Time `json:"log_date"`
 	TrackID       string    `json:"track_id"`
 	TrackName     string    `json:"track_name"`
 	ArtistName    string    `json:"artist_name"`

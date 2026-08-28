@@ -2,9 +2,11 @@ package handler
 
 import (
 	"context"
+	"errors"
 
 	"github.com/NapasinNgam/spotify-diary/internal/repository"
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5"
 )
 
 type DiaryHandler struct {
@@ -28,8 +30,10 @@ func (h *DiaryHandler) GetCalendar(c *fiber.Ctx) error {
 
 	entries, err := h.diaryRepo.GetByMonth(context.Background(), userID, month)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch diary entries",
+		// Return empty array if no data or error
+		return c.JSON(fiber.Map{
+			"entries": []interface{}{},
+			"month":   month,
 		})
 	}
 
@@ -77,7 +81,7 @@ func (h *DiaryHandler) LogSong(c *fiber.Ctx) error {
 	})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to save diary entry",
+			"error": "Failed to save diary entry: " + err.Error(),
 		})
 	}
 
@@ -92,7 +96,7 @@ func (h *DiaryHandler) DeleteLog(c *fiber.Ctx) error {
 	date := c.Params("date") // YYYY-MM-DD
 
 	err := h.diaryRepo.Delete(context.Background(), userID, date)
-	if err != nil {
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to delete diary entry",
 		})

@@ -19,6 +19,7 @@ func Setup(app *fiber.App, cfg *config.Config, db *pgxpool.Pool) {
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(cfg, userRepo)
+	spotifyHandler := handler.NewSpotifyHandler(cfg, userRepo)
 	diaryHandler := handler.NewDiaryHandler(diaryRepo)
 	newsHandler := handler.NewNewsHandler(historyRepo, diaryRepo)
 	monthlyHandler := handler.NewMonthlyHandler(summaryRepo)
@@ -45,6 +46,10 @@ func Setup(app *fiber.App, cfg *config.Config, db *pgxpool.Pool) {
 
 	// User
 	protected.Get("/me", authHandler.Me)
+
+	// Spotify
+	spotifyGroup := protected.Group("/spotify")
+	spotifyGroup.Get("/search", spotifyHandler.Search)
 
 	// Diary
 	diary := protected.Group("/diary")
