@@ -22,8 +22,10 @@ type MonthlySummary struct {
 type HalfYearRecap struct {
 	ID            int       `json:"id"`
 	UserID        int       `json:"user_id"`
-	Period        string    `json:"period"` // e.g. "2026-H1", "2026-H2"
-	Rank          int       `json:"rank"`   // 1-5 for top, 6-8 for honorable mentions
+	Period        string    `json:"period"`     // e.g. "2026-H1", "2026-FULL"
+	RecapType     string    `json:"recap_type"` // "half_year" or "full_year"
+	SlotKey       string    `json:"slot_key"`   // e.g. "overall", "hm_1", "place_5", "place_1", "summary"
+	Rank          *int      `json:"rank"`       // nullable, kept for ordering
 	TrackID       string    `json:"track_id"`
 	TrackName     string    `json:"track_name"`
 	ArtistName    string    `json:"artist_name"`

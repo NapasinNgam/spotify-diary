@@ -73,5 +73,6 @@ func Setup(app *fiber.App, cfg *config.Config, db *pgxpool.Pool) {
 	recap := protected.Group("/recap")
 	recap.Get("/", recapHandler.GetRecap)
 	recap.Post("/", recapHandler.SaveRecap)
+	recap.Delete("/slot", recapHandler.DeleteRecapSlot)
 	recap.Get("/periods", recapHandler.ListPeriods)
 }
